@@ -62,8 +62,9 @@ namespace Gaston11276.Pushcar.Client
 			await Delay(TimeSpan.FromSeconds(1));
 		}
 
-		public void OnHotkey()
+		public async Task OnHotkey()
 		{
+			await Delay(100);
 			if (this.activateKey.IsJustPressed())
 			{
 				m_pushed_vehicle = GetClosestVehicle(Game.PlayerPed.Position.X, Game.PlayerPed.Position.Y, Game.PlayerPed.Position.Z, 5f, 0, 1);
