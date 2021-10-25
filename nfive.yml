@@ -1,0 +1,17 @@
+name: gaston11276/pushcar
+version: 0.1.0
+description: NFive Plugin. Player is able to push vehicles using hotkey ('E' by default.)
+author: gaston11276
+license: LGPL-3.0-or-later
+server:
+  main:
+    - Gaston11276.Pushcar.Server
+  include:
+    - Gaston11276.Pushcar.Shared
+client:
+  main:
+    - Gaston11276.Pushcar.Client
+  include:
+    - Gaston11276.Pushcar.Shared
+  files:
+    - Overlays/PushcarOverlay.html
