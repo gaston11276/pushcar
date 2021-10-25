@@ -51,17 +51,7 @@ namespace Gaston11276.Pushcar.Client
 
 			// Attach a tick handler
 			this.Ticks.On(OnHotkey);
-			this.Ticks.On(OnTick);
 		}
-
-		private async Task OnTick()
-		{
-			
-			// Do something every frame
-
-			await Delay(TimeSpan.FromSeconds(1));
-		}
-
 		public async Task OnHotkey()
 		{
 			await Delay(100);

@@ -15,5 +15,3 @@ client:
   - Gaston11276.Pushcar.Shared
   files:
   - Overlays/PushcarOverlay.html
-dependencies:
-  gaston11276/pushcar: ^0.1.0
