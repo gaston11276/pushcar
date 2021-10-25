@@ -5,13 +5,15 @@ author: gaston11276
 license: LGPL-3.0-or-later
 server:
   main:
-    - Gaston11276.Pushcar.Server
+  - Gaston11276.Pushcar.Server
   include:
-    - Gaston11276.Pushcar.Shared
+  - Gaston11276.Pushcar.Shared
 client:
   main:
-    - Gaston11276.Pushcar.Client
+  - Gaston11276.Pushcar.Client
   include:
-    - Gaston11276.Pushcar.Shared
+  - Gaston11276.Pushcar.Shared
   files:
-    - Overlays/PushcarOverlay.html
+  - Overlays/PushcarOverlay.html
+dependencies:
+  gaston11276/pushcar: ^0.1.0

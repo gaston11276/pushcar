@@ -21,13 +21,13 @@ namespace Gaston11276.Pushcar.Client
 	[PublicAPI]
 	public class PushcarService : Service
 	{
-		public const int ANIM_NORMAL = 1;//0b00000000000000000000000000000001;
-		public const int ANIM_REPEAT = 1 << 1;//0b00000000000000000000000000000010;
-		public const int ANIM_STOP_LAST_FRAME = 1 << 2;// = 0b00000000000000000000000000000100;
-		public const int ANIM_UPPERBODY = 1 << 3;//0b00000000000000000000000000001000;
-		public const int ANIM_ENABLE_PLAYER_CONTROL = 1 << 4;//0b00000000000000000000000000010000;
-		public const int ANIM_CANCELABLE = 1 << 5;//0b00000000000000000000000000100000;
-		//this.Logger.Debug($"{1 | 1 << 1 | 1 << 3 | 1 << 4}"); //1 + 2 + 8 + 16
+		public const int ANIM_NORMAL = 1;
+		public const int ANIM_REPEAT = 1 << 1;
+		public const int ANIM_STOP_LAST_FRAME = 1 << 2;
+		public const int ANIM_UPPERBODY = 1 << 3;
+		public const int ANIM_ENABLE_PLAYER_CONTROL = 1 << 4;
+		public const int ANIM_CANCELABLE = 1 << 5;
+
 
 		private Configuration config;
 		private Hotkey activateKey;
@@ -35,8 +35,6 @@ namespace Gaston11276.Pushcar.Client
 
 		Vector3 m_vec_force;
 		int m_pushed_vehicle;
-		string animationDictionary;
-		string animationName;
 
 		public PushcarService(ILogger logger, ITickManager ticks, ICommunicationManager comms, ICommandManager commands, IOverlayManager overlay, User user) : base(logger, ticks, comms, commands, overlay, user) { }
 
