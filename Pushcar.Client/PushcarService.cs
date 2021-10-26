@@ -7,17 +7,17 @@ using NFive.SDK.Client.Events;
 using NFive.SDK.Client.Interface;
 using NFive.SDK.Client.Services;
 using NFive.SDK.Client.Input;
+using NFive.SDK.Core.Input;
 using NFive.SDK.Core.Diagnostics;
 using NFive.SDK.Core.Models.Player;
-using Gaston11276.Pushcar.Client.Overlays;
-using Gaston11276.Pushcar.Shared;
 using CitizenFX.Core;
 using static CitizenFX.Core.Native.API;
 
+using NFive.SDK.Core.Controllers;
+//using Gaston11276.Debug;
+
 namespace Gaston11276.Pushcar.Client
 {
-	
-
 	[PublicAPI]
 	public class PushcarService : Service
 	{
@@ -28,21 +28,25 @@ namespace Gaston11276.Pushcar.Client
 		public const int ANIM_ENABLE_PLAYER_CONTROL = 1 << 4;
 		public const int ANIM_CANCELABLE = 1 << 5;
 
-
-		private Configuration config;
 		private Hotkey activateKey;
-		//private PushcarOverlay overlay;
 
-		Vector3 m_vec_force;
+		Vector3 vecForce;
+		float vehicleMass;
+		Vector3 vecPlayerToVehicle;
 		int m_pushed_vehicle;
+
+		//Debug
+		//private Hotkey DEBUG_keyClear;
+		//private Hotkey DEBUG_keyStepUp;
+		//private Hotkey DEBUG_keyStepDown;
+		float forceFactor;
+		float distToCollision;
 
 		public PushcarService(ILogger logger, ITickManager ticks, ICommunicationManager comms, ICommandManager commands, IOverlayManager overlay, User user) : base(logger, ticks, comms, commands, overlay, user) { }
 
 		public override async Task Started()
 		{
-			// Request server configuration
-			this.config = await this.Comms.Event(PushcarEvents.Configuration).ToServer().Request<Configuration>();
-			this.activateKey = new Hotkey(this.config.Hotkey);
+			this.activateKey = new Hotkey(InputControl.Context);
 
 			RequestAnimDict("missfinale_c2ig_11");
 
@@ -51,70 +55,144 @@ namespace Gaston11276.Pushcar.Client
 
 			// Attach a tick handler
 			this.Ticks.On(OnHotkey);
+
+			//Debug
+			forceFactor = 80f;
+			//this.DEBUG_keyClear = new Hotkey(InputControl.Aim);
+			//this.DEBUG_keyStepUp = new Hotkey(InputControl.FrontendUp);
+			//this.DEBUG_keyStepDown = new Hotkey(InputControl.FrontendDown);
+			//debug.Set();
+			//this.Ticks.On(OnDraw);
+
+			await Delay(1);
 		}
+
+		/*
+		//Debug
+		void OnDraw()
+		{
+			debug.Draw();
+			
+		}
+		*/
+
 		public async Task OnHotkey()
 		{
-			await Delay(100);
-			if (this.activateKey.IsJustPressed())
+			// Debug
+			//debug.Clear();
+
+			//Debug
+			/*
+			if (this.DEBUG_keyClear.IsJustReleased())
 			{
+				debug.Clear();
+			}
+			if (this.DEBUG_keyStepUp.IsJustReleased())
+			{
+				forceFactor += 1f;
+			}
+			if (this.DEBUG_keyStepDown.IsJustReleased())
+			{
+				forceFactor -= 1f;
+			}
+			*/
+
+			if (this.activateKey.IsJustPressed())
+			{				
 				m_pushed_vehicle = GetClosestVehicle(Game.PlayerPed.Position.X, Game.PlayerPed.Position.Y, Game.PlayerPed.Position.Z, 5f, 0, 1);
+
 				if (m_pushed_vehicle != 0)
 				{
-					Model car_model = GetEntityModel(m_pushed_vehicle);
-					Vector3 vec_min = new Vector3();
-					Vector3 vec_max = new Vector3();
-
-					GetModelDimensions((uint)car_model.GetHashCode(), ref vec_min, ref vec_max);
-
-					Vector3 vehicle_position = GetEntityCoords(m_pushed_vehicle, false);
-					Vector3 player_to_veh = vehicle_position - Game.PlayerPed.Position;
-
-					if (GetDeg(player_to_veh, Game.PlayerPed.ForwardVector) < 45f && player_to_veh.Length() - vec_max.Y < 1.0f)
+					if (IsPlayerFacingVehicle())
 					{
-						SetPedCanPlayAmbientAnims(Game.PlayerPed.Handle, true);
-						TaskPlayAnim(Game.PlayerPed.Handle, "missfinale_c2ig_11", "pushcar_offcliff_m", 1f, 1f, -1, (ANIM_NORMAL | ANIM_REPEAT | ANIM_ENABLE_PLAYER_CONTROL | ANIM_CANCELABLE), 1f, false, false, false);
-							
-						m_vec_force = player_to_veh;
-						m_vec_force.Normalize();
-						m_vec_force *= GetVehicleHandlingFloat(m_pushed_vehicle, "CHandlingData", "fMass") * 15f;
+						StartPushing();
 					}
 				}
 			}
-
-			if (this.activateKey.IsPressed())
-			{
+			else if (this.activateKey.IsPressed())
+			{				
 				if (m_pushed_vehicle != 0)
 				{
-					Model car_model = GetEntityModel(m_pushed_vehicle);
-					Vector3 vec_min = new Vector3();
-					Vector3 vec_max = new Vector3();
-
-					GetModelDimensions((uint)car_model.GetHashCode(), ref vec_min, ref vec_max);
-
-					Vector3 vehicle_position = GetEntityCoords(m_pushed_vehicle, false);
-					Vector3 player_to_veh = vehicle_position - Game.PlayerPed.Position;
-
-					if (GetDeg(player_to_veh, Game.PlayerPed.ForwardVector) < 45f && player_to_veh.Length() - vec_max.Y < 1.0f)
+					UpdateForce();
+					if (IsPlayerFacingVehicle())
 					{
-						ApplyForceToEntity(m_pushed_vehicle, 0, m_vec_force.X, m_vec_force.Y, m_vec_force.Z, 0f, 0f, 0f, 0, false, true, false, false, true);
+						await Delay(10); // This affects the amount of force being applied, keeping it frametime neutral
+						
+						ApplyForceToEntity(m_pushed_vehicle, 0, vecForce.X, vecForce.Y, vecForce.Z, 0f, 0f, 0f, 0, false, true, false, false, true);
 					}
 					else
 					{
-						StopEntityAnim(Game.PlayerPed.Handle, "pushcar_offcliff_m", "missfinale_c2ig_11", 1.0f);
-						m_pushed_vehicle = 0;
-						m_vec_force.X = 0f; m_vec_force.Y = 0f; m_vec_force.Z = 0f;
+						StopPushing();
 					}
 				}
 			}
 
 			if (this.activateKey.IsJustReleased())
 			{
-				StopEntityAnim(Game.PlayerPed.Handle, "pushcar_offcliff_m", "missfinale_c2ig_11", 1.0f);
-				m_pushed_vehicle = 0;
-				m_vec_force.X = 0f; m_vec_force.Y = 0f; m_vec_force.Z = 0f;
+				StopPushing();
 			}
 		}
 
+		private bool IsPlayerFacingVehicle(bool pushing = false)
+		{
+			Model car_model = GetEntityModel(m_pushed_vehicle);
+			int model_hash = car_model.GetHashCode();
+
+			Vector3 vec_min = new Vector3();
+			Vector3 vec_max = new Vector3();
+
+			GetModelDimensions((uint)car_model.GetHashCode(), ref vec_min, ref vec_max);
+			Vector3 vehicle_position = GetEntityCoords(m_pushed_vehicle, false);
+			vecPlayerToVehicle = vehicle_position - Game.PlayerPed.Position;
+
+			//debug.Out($"Dist: {vecPlayerToVehicle.Length() - vec_max.Y}");
+			distToCollision = vecPlayerToVehicle.Length() - vec_max.Y;
+
+			if (GetDeg(vecPlayerToVehicle, Game.PlayerPed.ForwardVector) < 45f && vecPlayerToVehicle.Length() - vec_max.Y < 1.0f)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		private void SetForce()
+		{
+			vehicleMass = GetVehicleHandlingFloat(m_pushed_vehicle, "CHandlingData", "fMass");
+		}
+
+		private void UpdateForce()
+		{
+			vecForce = vecPlayerToVehicle;
+			vecForce.Normalize();
+
+			//debug.Out($"ForceFactor: ${forceFactor}");
+			float distFactor = 1.0f - distToCollision;
+			if (distFactor > 1f) distFactor = 1f;
+			//debug.Out($"DistFactor: ${distFactor}");
+			float force = forceFactor * 0.5f * (1.0f - distToCollision);
+			//debug.Out($"Force: ${force}");
+
+			vecForce *= (vehicleMass * force);
+		}
+
+		private void StartPushing()
+		{
+			SetForce();
+			UpdateForce();
+			SetPedCanPlayAmbientAnims(Game.PlayerPed.Handle, true);
+			TaskPlayAnim(Game.PlayerPed.Handle, "missfinale_c2ig_11", "pushcar_offcliff_m", 1f, 1f, -1, (ANIM_NORMAL | ANIM_REPEAT | ANIM_ENABLE_PLAYER_CONTROL | ANIM_CANCELABLE), 1f, false, false, false);
+		}
+
+		private void Push()
+		{ }
+
+		private void StopPushing()
+		{
+			StopEntityAnim(Game.PlayerPed.Handle, "pushcar_offcliff_m", "missfinale_c2ig_11", 1.0f);
+			m_pushed_vehicle = 0;
+			vecForce.X = 0f; vecForce.Y = 0f; vecForce.Z = 0f;
+		}
+		
 		private float GetDeg(Vector3 vec1, Vector3 vec2)
 		{
 			vec1.Normalize();

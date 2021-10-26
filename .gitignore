@@ -5,3 +5,5 @@
 /*.dll
 obj/
 *.user
+debug.cs
+ui.cs
